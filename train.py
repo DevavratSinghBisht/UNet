@@ -26,9 +26,9 @@ from dice_score import dice_loss
 
 def train(
         model:              UNet,
-        train_imgs:         str,
+        train_images:         str,
         train_masks:        str,
-        val_imgs:           str,
+        val_images:           str,
         val_masks:          str,
         device:             torch.device,
         epochs:             int = 5,
@@ -47,9 +47,9 @@ def train(
 
     params:
         model :             Model to be trained
-        train_imgs:         Path to the directory containing input images for training
+        train_images:         Path to the directory containing input images for training
         train_masks:        Path to the directory containing training target mask images
-        val_imgs:           Path to the directory containing input images for validation
+        val_images:           Path to the directory containing input images for validation
         val_masks:          Path to the directory containing validation target mask images
         device:             Device to process tensor on, usualy cpu or gpu
         epoch:              Number of epochs to train the model
@@ -73,8 +73,8 @@ def train(
 
 
     # Create dataset
-    train_set = CarvanaDataset(train_imgs, train_masks, img_scale)
-    val_set = CarvanaDataset(val_imgs, val_masks, img_scale)
+    train_set = CarvanaDataset(train_images, train_masks, img_scale)
+    val_set = CarvanaDataset(val_images, val_masks, img_scale)
 
     # split train and val
     n_val = len(train_set)
@@ -88,9 +88,9 @@ def train(
     # Initalize Logging
 
     logging.info(f''' Starting Training:
-        Train Images:       {train_imgs}
+        Train Images:       {train_images}
         Train Masks:        {train_masks}
-        Validation Images:  {val_imgs}
+        Validation Images:  {val_images}
         Validation Masks:   {val_masks}
         Epochs:             {epochs}
         Batch size:         {batch_size}
@@ -221,14 +221,14 @@ def get_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks')
     
     # data
-    parser.add_argument('--train-imgs', '-ti', type=str, default='data/train/images', help='Path to the directory containing training images.')
+    parser.add_argument('--train-images', '-ti', type=str, default='data/train/images', help='Path to the directory containing training images.')
     parser.add_argument('--train-masks', '-tm',type=str, default='data/train/masks', help='Path to the directory containing training masks.')
-    parser.add_argument('--val-imgs', '-vi', type=str, default='data/val/images', help='Path to the directory containing validation images.')
+    parser.add_argument('--val-images', '-vi', type=str, default='data/val/images', help='Path to the directory containing validation images.')
     parser.add_argument('--val-masks', '-vm', type=str, default='data/val/masks', help='Path to the directory containing validation masks.')
     
     # checkpoint
-    parser.add_argument('--save-ckpt', '-sckpt', type=str, default='checkpoints', help='Path to the save model checkpoint.')
-    parser.add_argument('--load-ckpt', '-lckpt', type=str, default=False, help='Path to the model checkpoint. Load model from a .pth file')
+    parser.add_argument('--save-ckpt', '-svckpt', type=str, default='checkpoints', help='Path to the save model checkpoint.')
+    parser.add_argument('--load-ckpt', '-ldckpt', type=str, default=False, help='Path to the model checkpoint. Load model from a .pth file')
 
     # hyperparameters and other parameters
     parser.add_argument('--epochs', '-e', metavar='E', type=int, default=5, help='Number of epochs')
@@ -237,8 +237,8 @@ def get_args() -> argparse.Namespace:
                         help='Learning rate', dest='lr')
     
     parser.add_argument('--scale', '-s', type=float, default=0.25, help='Downscaling factor of the images')
-    parser.add_argument('--amp', action='store_true', default=False, help='Use mixed precision')
-    parser.add_argument('--bilinear', action='store_true', default=False, help='Use bilinear upsampling')
+    parser.add_argument('--amp', '-a', action='store_true', default=False, help='Use mixed precision')
+    parser.add_argument('--bilinear', '-bil', action='store_true', default=False, help='Use bilinear upsampling')
     parser.add_argument('--classes', '-c', type=int, default=1, help='Number of classes')
     
     return parser.parse_args()
@@ -274,9 +274,9 @@ if __name__ == "__main__":
     try:
         model, history = train(
             model=model,
-            train_imgs = args.train_imgs,
+            train_images = args.train_images,
             train_masks = args.train_masks,
-            val_imgs = args.val_imgs,
+            val_images = args.val_images,
             val_masks = args.val_masks,
             epochs=args.epochs,
             batch_size=args.batch_size,
