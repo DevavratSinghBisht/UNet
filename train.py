@@ -1,14 +1,21 @@
+#####################################################################
+#         Script for Training an Image Segmentation Model           #
+#####################################################################
+#  We would be training UNet using the training script,             #
+#  But this sript can be used train any image segmentation model.   #
+#  We would be using Cross Entropy and Disce Loss                   #
+#####################################################################
+
+
 import argparse
 import logging
 import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torchvision.transforms as transforms
-import torchvision.transforms.functional as TF
 from pathlib import Path
 from torch import optim
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from evaluate import evaluate
@@ -72,9 +79,6 @@ def train(
     # split train and val
     n_val = len(train_set)
     n_train = len(val_set)
-    # train_set, val_set = random_split(dataset,
-    #                                 [n_train, n_val],
-    #                                 generator=torch.Generator().manual_seed(seed))
     
     # Creating dataloader
     loader_args = dict(batch_size=batch_size, num_workers=os.cpu_count(), pin_memory=True)
@@ -130,12 +134,15 @@ def train(
                 images = images.to(device=device, dtype=torch.float32, memory_format=torch.channels_last)
                 true_masks = true_masks.to(device=device, dtype=torch.long)
 
-                with torch.autocast(device.type if device.type != 'mps'else 'cpu', enabled=amp):
+                with torch.autocast(device.type if device.type != 'mps' else 'cpu', enabled=amp):
+
+                    # make predictions
                     pred_masks = model(images)
+
+                    # compute loss
                     if model.n_classes == 1:
                         loss = criterion(pred_masks, true_masks.float())
                         loss += dice_loss(F.sigmoid(pred_masks.squeeze(1)), true_masks.squeeze(1).float(), multiclass=False)
-
                     else:
                         # Multi Class
                         # TODO causes error, solve them
@@ -147,6 +154,7 @@ def train(
                         #     multiclass=True
                         # )
 
+                # back propagation
                 optimizer.zero_grad(set_to_none=True)
                 grad_scaler.scale(loss).backward()
                 grad_scaler.unscale_(optimizer)
@@ -154,6 +162,7 @@ def train(
                 grad_scaler.step(optimizer)
                 grad_scaler.update()
 
+                # save values in variables and show updates
                 pbar.update(images.shape[0])
                 global_step += 1
                 epoch_loss += loss.item()
@@ -164,14 +173,16 @@ def train(
                 })
                 pbar.set_postfix(**{'loss (batch)': loss.item()})
 
-                # TODO Evaluation
+                # validate 5 times each loop #TODO confirm this statement
                 division_step = (n_train // (5 * batch_size))
                 if division_step > 0:
                     if global_step % division_step == 0:
                         
+                        # evaluate the model
                         val_score = evaluate(model, val_loader, device, amp)
                         scheduler.step(val_score)
 
+                        # save values in variables and show updates
                         logging.info('Validation Dice score: {}'.format(val_score))
                         
                         val_history.append({
@@ -186,6 +197,7 @@ def train(
                             'epoch': epoch
                         })
 
+        # save checkpoint
         if save_ckpt:
             save_ckpt = Path(save_ckpt)
             save_ckpt.mkdir(parents=True, exist_ok=True)
@@ -193,20 +205,32 @@ def train(
             torch.save(state_dict, str(save_ckpt / f'checkpoint_epoch{epoch}.pth'))
             logging.info(f'Checkpoint {epoch} saved!')
 
+    # create a tuple history containing losses, lr, step etc for each step
     history = (train_history, val_history)
+
     return model, history 
 
 
-def get_args():
+def get_args() -> argparse.Namespace:
+    '''
+    Gets args when running the script using command.
+
+    params  : None
+    returns : object containing parsed parameters
+    '''
     parser = argparse.ArgumentParser(description='Train the UNet on images and target masks')
     
+    # data
     parser.add_argument('--train-imgs', '-ti', type=str, default='data/train/images', help='Path to the directory containing training images.')
     parser.add_argument('--train-masks', '-tm',type=str, default='data/train/masks', help='Path to the directory containing training masks.')
     parser.add_argument('--val-imgs', '-vi', type=str, default='data/val/images', help='Path to the directory containing validation images.')
     parser.add_argument('--val-masks', '-vm', type=str, default='data/val/masks', help='Path to the directory containing validation masks.')
+    
+    # checkpoint
     parser.add_argument('--save-ckpt', '-sckpt', type=str, default='checkpoints', help='Path to the save model checkpoint.')
     parser.add_argument('--load-ckpt', '-lckpt', type=str, default=False, help='Path to the model checkpoint. Load model from a .pth file')
 
+    # hyperparameters and other parameters
     parser.add_argument('--epochs', '-e', metavar='E', type=int, default=5, help='Number of epochs')
     parser.add_argument('--batch-size', '-b', dest='batch_size', metavar='B', type=int, default=1, help='Batch size')
     parser.add_argument('--learning-rate', '-lr', metavar='LR', type=float, default=1e-5,
@@ -233,6 +257,7 @@ if __name__ == "__main__":
     # n_classes is the number of probabilities you want to get per pixel
     model = UNet(n_channels=3, n_classes=args.classes, bilinear=args.bilinear)
     model = model.to(memory_format=torch.channels_last)
+
 
     logging.info(f'Network:\n'
                  f'\t{model.n_channels} input channels\n'

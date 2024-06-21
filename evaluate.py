@@ -1,12 +1,31 @@
 import torch
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+from unet import UNet
 from dice_score import multiclass_dice_coeff, dice_coeff
 
 
 @torch.inference_mode()
-def evaluate(net, dataloader, device, amp):
+def evaluate(net        : UNet,
+             dataloader : DataLoader,
+             device     : torch.device,
+             amp        :bool
+            ) -> float:
+    '''
+    Evaluates the UNet Model
+
+    params:
+        net         : model to be evaluated
+        dataloader  : provides data to evaluate the model
+        device      : device to be used for evaluation, usually cpu or gpu
+        amp         : If true then mixed precision is used
+    
+    returns         : dice score
+    '''
+
+
     net.eval()
     num_val_batches = len(dataloader)
     dice_score = 0
@@ -23,6 +42,7 @@ def evaluate(net, dataloader, device, amp):
             # predict the mask
             mask_pred = net(image)
 
+            # calculate dice scroe
             if net.n_classes == 1:
                 assert mask_true.min() >= 0 and mask_true.max() <= 1, 'True mask indices should be in [0, 1]'
                 mask_pred = (F.sigmoid(mask_pred) > 0.5).float()
