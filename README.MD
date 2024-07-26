@@ -47,8 +47,8 @@ Following are the arguments that the train script takes along with their default
 | --train-masks   | -vi            | data/val/images   | str         | Path to the directory containing validation images.       |
 | --val-masks     | -vm            | data/val/masks    | str         | Path to the directory containing validation masks.        |
 | --save-ckpt     | -svckpt        | checkpoints       | str         | Path to the save model checkpoint.                        |
-| load-ckpt       | -ldckpt        | False             | bool or str | Path to the model checkpoint. Load model from a .pth file |
-| epochs          | -e             | 5                 | int         | Number of epochs                                          |
+| --load-ckpt     | -ldckpt        | False             | bool or str | Path to the model checkpoint. Load model from a .pth file |
+| --epochs        | -e             | 5                 | int         | Number of epochs                                          |
 | --batch-size    | -b             | 1                 | int         | Batch size                                                |
 | --learning-rate | -lr            | 1e-5              | float       | Learning Rate                                             |
 | --scale         | -s             | 0.25              | float       | Downscaling factor of the images                          |
